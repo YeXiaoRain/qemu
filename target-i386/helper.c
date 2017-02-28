@@ -1243,6 +1243,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     target_phys_addr_t paddr;
     uint32_t page_offset;
     int page_size;
+    addr += env->segs[R_DS].base;
 
     if (env->cr[4] & CR4_PAE_MASK) {
         target_ulong pdpe_addr;

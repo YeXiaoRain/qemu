@@ -120,6 +120,8 @@
 #define memalign(align, size) malloc(size)
 #endif
 
+#include "pcap.h"
+
 static VLANState *first_vlan;
 
 /***********************************************************/
@@ -496,6 +498,7 @@ void slirp_output(const uint8_t *pkt, int pkt_len)
     printf("slirp output:\n");
     hex_dump(stdout, pkt, pkt_len);
 #endif
+    pcap_dump(pkt, pkt_len);
     if (!slirp_vc)
         return;
     qemu_send_packet(slirp_vc, pkt, pkt_len);
@@ -512,6 +515,7 @@ static void slirp_receive(void *opaque, const uint8_t *buf, int size)
     printf("slirp input:\n");
     hex_dump(stdout, buf, size);
 #endif
+    pcap_dump(buf, size);    
     slirp_input(buf, size);
 }
 

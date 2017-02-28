@@ -155,7 +155,6 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
     if (val)
         val |= E1000_ICR_INT_ASSERTED;
     s->mac_reg[ICR] = val;
-    s->mac_reg[ICS] = val;
     qemu_set_irq(s->dev.irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
 }
 
@@ -263,11 +262,6 @@ set_eecd(E1000State *s, int index, uint32_t val)
     }
     if (!(val & E1000_EECD_CS)) {		// rising, no CS (EEPROM reset)
         memset(&s->eecd_state, 0, sizeof s->eecd_state);
-        /*
-         * restore old_eecd's E1000_EECD_SK (known to be on)
-         * to avoid false detection of a clock edge
-         */
-        s->eecd_state.old_eecd = E1000_EECD_SK;
         return;
     }
     s->eecd_state.val_in <<= 1;
@@ -288,14 +282,10 @@ flash_eerd_read(E1000State *s, int x)
 {
     unsigned int index, r = s->mac_reg[EERD] & ~E1000_EEPROM_RW_REG_START;
 
-    if ((s->mac_reg[EERD] & E1000_EEPROM_RW_REG_START) == 0)
-        return (s->mac_reg[EERD]);
-
     if ((index = r >> E1000_EEPROM_RW_ADDR_SHIFT) > EEPROM_CHECKSUM_REG)
-        return (E1000_EEPROM_RW_REG_DONE | r);
-
-    return ((s->eeprom_data[index] << E1000_EEPROM_RW_REG_DATA) |
-           E1000_EEPROM_RW_REG_DONE | r);
+        return 0;
+    return (s->eeprom_data[index] << E1000_EEPROM_RW_REG_DATA) |
+           E1000_EEPROM_RW_REG_DONE | r;
 }
 
 static void
@@ -784,7 +774,7 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     getreg(WUFC),	getreg(TDT),	getreg(CTRL),	getreg(LEDCTL),
     getreg(MANC),	getreg(MDIC),	getreg(SWSM),	getreg(STATUS),
     getreg(TORL),	getreg(TOTL),	getreg(IMS),	getreg(TCTL),
-    getreg(RDH),	getreg(RDT),	getreg(VET),	getreg(ICS),
+    getreg(RDH),	getreg(RDT),	getreg(VET),
 
     [TOTH] = mac_read_clr8,	[TORH] = mac_read_clr8,	[GPRC] = mac_read_clr4,
     [GPTC] = mac_read_clr4,	[TPR] = mac_read_clr4,	[TPT] = mac_read_clr4,

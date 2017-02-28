@@ -157,6 +157,8 @@ int main(int argc, char **argv)
 
 #include "exec-all.h"
 
+#include "pcap.h"
+
 //#define DEBUG_UNUSED_IOPORT
 //#define DEBUG_IOPORT
 //#define DEBUG_NET
@@ -201,7 +203,7 @@ ram_addr_t ram_size;
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
 int vm_running;
-int autostart;
+static int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 int cirrus_vga_enabled = 1;
@@ -4099,6 +4101,9 @@ static void help(int exitcode)
            "-chroot dir     Chroot to dir just before starting the VM.\n"
            "-runas user     Change to user id user just before starting the VM.\n"
 #endif
+	   "-debug-e100     print E100 debug statments\n"
+	   "-pcap file_name\n"
+	   "                when -net user is enabled, dump packets to file_name,\n"
            "\n"
            "During emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
@@ -4218,6 +4223,9 @@ enum {
     QEMU_OPTION_incoming,
     QEMU_OPTION_chroot,
     QEMU_OPTION_runas,
+    
+    QEMU_OPTION_debug_e100,
+    QEMU_OPTION_pcap,
 };
 
 typedef struct QEMUOption {
@@ -4348,6 +4356,9 @@ static const QEMUOption qemu_options[] = {
     { "incoming", HAS_ARG, QEMU_OPTION_incoming },
     { "chroot", HAS_ARG, QEMU_OPTION_chroot },
     { "runas", HAS_ARG, QEMU_OPTION_runas },
+
+    { "debug-e100", 0, QEMU_OPTION_debug_e100 },
+    { "pcap", HAS_ARG, QEMU_OPTION_pcap },
     { NULL },
 };
 
@@ -4622,6 +4633,7 @@ int main(int argc, char **argv, char **envp)
     struct passwd *pwd = NULL;
     const char *chroot_dir = NULL;
     const char *run_as = NULL;
+    extern int e100_debug;
 
     qemu_cache_utils_init(envp);
 
@@ -5283,6 +5295,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_runas:
                 run_as = optarg;
                 break;
+	    case QEMU_OPTION_debug_e100:
+		e100_debug = 1;
+		break;
+	    case QEMU_OPTION_pcap:
+		pcap_dump_init(optarg);
+		break;
             }
         }
     }
@@ -5721,12 +5739,10 @@ int main(int argc, char **argv, char **envp)
     if (loadvm)
         do_loadvm(loadvm);
 
-    if (incoming) {
-        autostart = 0;
+    if (incoming)
         qemu_start_incoming_migration(incoming);
-    }
 
-    else if (autostart)
+    if (autostart)
         vm_start();
 
     if (daemonize) {
